@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <h2 class="shop-title">Цветочная Лавка</h2>
+    
+    <div class="products-grid">
+        <!-- Пример товара 1 -->
+        <div class="card">
+            <img src="https://via.placeholder.com/150/fce4ec/880e4f?text=Roses">
+            <div class="card-title">Розы Red</div>
+            <div class="card-price">12 000 ₸</div>
+            <button class="buy-btn" onclick="buyProduct('Розы Red', 12000)">Купить</button>
+        </div>
+        <!-- Пример товара 2 -->
+        <div class="card">
+            <img src="https://via.placeholder.com/150/f3e5f5/4a148c?text=Tulips">
+            <div class="card-title">Тюльпаны</div>
+            <div class="card-price">8 500 ₸</div>
+            <button class="buy-btn" onclick="buyProduct('Тюльпаны', 8500)">Купить</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
