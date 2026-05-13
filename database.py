@@ -8,16 +8,18 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             price REAL NOT NULL,
-            description TEXT
+            description TEXT,
+            image_url TEXT NOT NULL
         )
     ''')
     conn.commit()
     conn.close()
 
-def add_product(name, price, description):
+def add_product(name, price, description, image_url):
     conn = sqlite3.connect('shop.db')
     cursor = conn.cursor()
-    cursor.execute('INSERT INTO products (name, price, description) VALUES (?, ?, ?)', (name, price, description))
+    cursor.execute('INSERT INTO products (name, price, description, image_url) VALUES (?, ?, ?, ?)', 
+                   (name, price, description, image_url))
     conn.commit()
     conn.close()
 
@@ -35,3 +37,11 @@ def get_all_products():
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+def get_product_by_id(product_id):
+    conn = sqlite3.connect('shop.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM products WHERE id = ?', (product_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row

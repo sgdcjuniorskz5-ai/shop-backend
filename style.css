@@ -24,7 +24,8 @@ body {
 }
 
 .card img { width: 100%; border-radius: 10px; }
-.card-title { font-size: 14px; margin: 10px 0 5px; }
+.card-title { font-size: 14px; margin: 10px 0 5px; font-weight: 600; }
+.card-description { font-size: 12px; color: #666; margin-bottom: 10px; min-height: 30px; }
 .card-price { font-weight: bold; color: #e91e63; margin-bottom: 10px; }
 
 .buy-btn {
