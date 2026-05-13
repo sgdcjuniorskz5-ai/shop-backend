@@ -36,3 +36,34 @@ body {
     border-radius: 8px;
     cursor: pointer;
 }
+
+.quantity-selector {
+    margin-bottom: 10px;
+}
+
+.quantity-selector input {
+    width: 60px;
+    padding: 5px;
+    text-align: center;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    margin-bottom: 5px;
+}
+
+.presets {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.presets button {
+    background: #f0f0f0;
+    border: none;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.presets button:hover { background: #e0e0e0; }

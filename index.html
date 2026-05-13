@@ -13,15 +13,20 @@
         <div class="card">
             <img src="https://via.placeholder.com/150/fce4ec/880e4f?text=Roses">
             <div class="card-title">Розы Red</div>
-            <div class="card-price">12 000 ₸</div>
-            <button class="buy-btn" onclick="buyProduct('Розы Red', 12000)">Купить</button>
-        </div>
-        <!-- Пример товара 2 -->
-        <div class="card">
-            <img src="https://via.placeholder.com/150/f3e5f5/4a148c?text=Tulips">
-            <div class="card-title">Тюльпаны</div>
-            <div class="card-price">8 500 ₸</div>
-            <button class="buy-btn" onclick="buyProduct('Тюльпаны', 8500)">Купить</button>
+            <div class="card-price">1200 ₸ / шт.</div>
+            
+            <div class="quantity-selector">
+                <input type="number" id="qty-rose" value="1" min="1">
+                <div class="presets">
+                    <button onclick="setQty('qty-rose', 1)">1</button>
+                    <button onclick="setQty('qty-rose', 5)">5</button>
+                    <button onclick="setQty('qty-rose', 25)">25</button>
+                    <button onclick="setQty('qty-rose', 51)">51</button>
+                    <button onclick="setQty('qty-rose', 101)">101</button>
+                </div>
+            </div>
+            
+            <button class="buy-btn" onclick="prepareOrder('Розы Red', 1200, 'qty-rose')">Купить</button>
         </div>
     </div>
 
