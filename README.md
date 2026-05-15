@@ -87,4 +87,9 @@ python main.py
 
 ---
 
+## Деплой на Render (backend) + GitHub Pages (frontend)
+
+Коротко: разместите фронтенд (`index.html`, `script.js`, `style.css`) на GitHub Pages, а backend (бот + API) задеплойте на Render. В `render-deploy.md` есть подробная инструкция.
+
+
 **Все готово к использованию!** 🎉

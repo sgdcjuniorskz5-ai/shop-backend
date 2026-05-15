@@ -94,7 +94,7 @@ function setQty(id, value) {
     document.getElementById(id).value = value;
 }
 
-function prepareOrder(name, pricePerOne, qtyId, productId) {
+async function prepareOrder(name, pricePerOne, qtyId, productId) {
     const qtyElement = document.getElementById(qtyId);
     const qty = parseInt(qtyElement.value);
     
@@ -114,26 +114,26 @@ function prepareOrder(name, pricePerOne, qtyId, productId) {
     };
 
     if (!isWebApp) {
-            const fallbackText = `Заказ не может быть отправлен автоматически вне Telegram.\n\nТовар: ${name}\nКоличество: ${qty}\nСумма: ${totalPrice} ₸\nID товара: ${productId}\n\nОткройте магазин через Telegram и повторите заказ.`;
-            copyText(fallbackText);
+        const fallbackText = `Заказ не может быть отправлен автоматически вне Telegram.\n\nТовар: ${name}\nКоличество: ${qty}\nСумма: ${totalPrice} ₸\nID товара: ${productId}\n\nОткройте магазин через Telegram и повторите заказ.`;
+        copyText(fallbackText);
 
-            // Попытка отправить заказ на сервер (чтобы админ получил уведомление)
-            try {
-                const res = await fetch(`${API_BASE}/order`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                if (res.ok) {
-                    alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован, и уведомление отправлено администратору.');
-                } else {
-                    alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован. Не удалось отправить уведомление администратору.');
-                }
-            } catch (err) {
-                console.warn('Order POST failed', err);
+        // Попытка отправить заказ на сервер (чтобы админ получил уведомление)
+        try {
+            const res = await fetch(`${API_BASE}/order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован, и уведомление отправлено администратору.');
+            } else {
                 alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован. Не удалось отправить уведомление администратору.');
             }
-            return;
+        } catch (err) {
+            console.warn('Order POST failed', err);
+            alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован. Не удалось отправить уведомление администратору.');
+        }
+        return;
     }
 
     tg.sendData(JSON.stringify(data));
