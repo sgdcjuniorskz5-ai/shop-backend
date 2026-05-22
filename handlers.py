@@ -67,7 +67,7 @@ def find_pending_order_for_user(user_id: int, username: str | None = None):
 
 
 async def start_handler(message: types.Message):
-    description = f"Привет, {message.from_user.first_name}! Добро пожаловать к нам в магазин! Нажмите на кнопку чтобы открыть магазин цветов"
+    description = f"Привет, {message.from_user.first_name}! Добро пожаловать в цветочный магазин, нажми на кнопку чтобы открыть магазин"
     
     # Создаем ReplyKeyboardMarkup (обычную кнопку под вводом текста).
     # Она на 100% поддерживает tg.sendData() в Telegram.
@@ -76,8 +76,6 @@ async def start_handler(message: types.Message):
     ]
     markup = types.ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
-    if LOCAL_WEB_URL:
-        description += f"\n\nЛокальный магазин: [открыть]({LOCAL_WEB_URL})"
     await message.answer(description, reply_markup=markup, parse_mode="Markdown")
 
 async def list_products_handler(message: types.Message):
@@ -100,18 +98,12 @@ async def list_products_handler(message: types.Message):
             text += f"🖼 [Фото]({image_url})\n"
         text += "\n"
     
-    button = build_shop_button("Открыть магазин 🛍")
-    if button:
-        markup = types.InlineKeyboardMarkup(inline_keyboard=[[button]])
-        if LOCAL_WEB_URL:
-            text += f"\nЛокальный магазин: [открыть]({LOCAL_WEB_URL})"
-        await message.answer(text, reply_markup=markup, parse_mode="Markdown")
-    else:
-        text += f"🔗 [Открыть магазин]({WEBAPP_URL})\n\n"
-        if LOCAL_WEB_URL:
-            text += f"Локальный магазин: [открыть]({LOCAL_WEB_URL})\n\n"
-        text += "⚠️ Локальный магазин работает через обычную ссылку. Откроется в браузере."
-        await message.answer(text, parse_mode="Markdown")
+    # Отправляем обычную клавиатуру как в старт хендлере
+    keyboard = [
+        [types.KeyboardButton(text="Открыть магазин 🛍", web_app=types.WebAppInfo(url=WEBAPP_URL))]
+    ]
+    markup = types.ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+    await message.answer(text, reply_markup=markup, parse_mode="Markdown")
 
 async def web_app_data_handler(message: types.Message):
     """Обработка данных с веб-приложения"""
