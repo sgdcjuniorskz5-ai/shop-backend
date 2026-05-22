@@ -115,9 +115,14 @@ async function prepareOrder(name, pricePerOne, qtyId, productId) {
 
     if (!isWebApp) {
         const fallbackText = `Заказ не может быть отправлен автоматически вне Telegram.\n\nТовар: ${name}\nКоличество: ${qty}\nСумма: ${totalPrice} ₸\nID товара: ${productId}\n\nОткройте магазин через Telegram и повторите заказ.`;
+
+        const contact = prompt('Введите ваш Telegram username (например @username) или numeric chat_id (опционально), чтобы получить подтверждение в Telegram. Оставьте пустым для пропуска.');
+        if (contact && contact.trim()) {
+            data.user_contact = contact.trim();
+        }
+
         copyText(fallbackText);
 
-        // Попытка отправить заказ на сервер (чтобы админ получил уведомление)
         try {
             const res = await fetch(`${API_BASE}/order`, {
                 method: 'POST',
@@ -125,13 +130,18 @@ async function prepareOrder(name, pricePerOne, qtyId, productId) {
                 body: JSON.stringify(data)
             });
             if (res.ok) {
-                alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован, и уведомление отправлено администратору.');
+                const json = await res.json().catch(()=>({}));
+                if (json.order_code) {
+                    alert('✅ Заказ принят. Код заказа: ' + json.order_code + '\n\nОтправьте чек из Kaspi.kz (фото/документ) в этот бот в Telegram с кодом заказа в подписи, чтобы продавец подтвердил оплату.');
+                } else {
+                    alert('✅ Заказ принят. Текст заказа скопирован.');
+                }
             } else {
-                alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован. Не удалось отправить уведомление администратору.');
+                alert('❌ Ошибка при отправке заказа на сервер.');
             }
         } catch (err) {
             console.warn('Order POST failed', err);
-            alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован. Не удалось отправить уведомление администратору.');
+            alert('❌ Не удалось отправить заказ на сервер.');
         }
         return;
     }

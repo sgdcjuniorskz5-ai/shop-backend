@@ -3,7 +3,7 @@ from aiogram import types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from config import ADMIN_ID, WEBAPP_URL as CONFIG_WEBAPP_URL
+from config import ADMIN_ID, WEBAPP_URL as CONFIG_WEBAPP_URL, KASPI_NUMBER
 from database import add_product, delete_product, get_all_products, get_product_by_id
 
 WEBAPP_URL = CONFIG_WEBAPP_URL
@@ -40,20 +40,45 @@ def validate_image_url(url):
     url_lower = url.lower()
     return any(url_lower.endswith(f'.{fmt}') for fmt in ALLOWED_IMAGE_FORMATS)
 
-async def start_handler(message: types.Message):
-    description = f"Привет, {message.from_user.first_name}! Выбирай цветы:"
-    button = build_shop_button("Открыть магазин 🌸")
 
-    if button:
-        markup = types.InlineKeyboardMarkup(inline_keyboard=[[button]])
-        if LOCAL_WEB_URL:
-            description += f"\n\nЛокальный магазин: [открыть]({LOCAL_WEB_URL})"
-        await message.answer(description, reply_markup=markup, parse_mode="Markdown")
-    else:
-        description += f"\n\n🔗 [Открыть магазин]({WEBAPP_URL})"
-        if LOCAL_WEB_URL:
-            description += f"\nЛокальный магазин: [открыть]({LOCAL_WEB_URL})"
-        await message.answer(description, parse_mode="Markdown")
+# Pending orders storage for orders created outside WebApp
+# key: order_code -> dict with order data and timestamp
+pending_orders = {}
+
+def add_pending_order(code: str, order: dict):
+    pending_orders[code] = {**order, 'created_at': __import__('time').time()}
+
+def pop_pending_order_by_code(code: str):
+    return pending_orders.pop(code, None)
+
+def find_pending_order_for_user(user_id: int, username: str | None = None):
+    # Try to find by numeric chat_id stored in user_contact, or by username match
+    for code, o in list(pending_orders.items()):
+        uc = o.get('user_contact')
+        try:
+            if uc is not None and int(str(uc)) == user_id:
+                return code, o
+        except Exception:
+            pass
+        if username and uc:
+            if isinstance(uc, str) and uc.lstrip('@').lower() == username.lower():
+                return code, o
+    return None, None
+
+
+async def start_handler(message: types.Message):
+    description = f"Привет, {message.from_user.first_name}! Добро пожаловать к нам в магазин! Нажмите на кнопку чтобы открыть магазин цветов"
+    
+    # Создаем ReplyKeyboardMarkup (обычную кнопку под вводом текста).
+    # Она на 100% поддерживает tg.sendData() в Telegram.
+    keyboard = [
+        [types.KeyboardButton(text="Открыть магазин 🌸", web_app=types.WebAppInfo(url=WEBAPP_URL))]
+    ]
+    markup = types.ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+    if LOCAL_WEB_URL:
+        description += f"\n\nЛокальный магазин: [открыть]({LOCAL_WEB_URL})"
+    await message.answer(description, reply_markup=markup, parse_mode="Markdown")
 
 async def list_products_handler(message: types.Message):
     """Показывает список всех товаров текстом"""
@@ -90,6 +115,7 @@ async def list_products_handler(message: types.Message):
 
 async def web_app_data_handler(message: types.Message):
     """Обработка данных с веб-приложения"""
+    print(f"DEBUG: Получены данные от WebApp: {message.web_app_data.data}")
     try:
         data = json.loads(message.web_app_data.data)
         
@@ -129,15 +155,41 @@ async def web_app_data_handler(message: types.Message):
             return
         
         # Успешный заказ
+        import random, string
+
+        def gen_code(n=8):
+            return ''.join(random.choices(string.ascii_uppercase + string.digits, k=n))
+
+        order_code = gen_code(8)
+        customer_name = data.get('name', 'Не указано')
+        customer_address = data.get('address', 'Не указан')
+
+        # Сохраняем pending order для сопоставления чека
+        order_data = {
+            'product_id': data.get('product_id'),
+            'item': data['item'],
+            'quantity': qty,
+            'price': price,
+            'name': customer_name,
+            'address': customer_address,
+            'user_contact': str(message.from_user.id),
+        }
+        add_pending_order(order_code, order_data)
+
         text = (
-            f"✅ **Заказ сформирован!**\n\n"
+            f"✅ **Заказ `{order_code}` сформирован!**\n\n"
             f"🌸 Товар: {data['item']}\n"
             f"🔢 Количество: {qty} шт.\n"
             f"💰 Итого: {price} ₸\n"
+            f"👤 Имя: {customer_name}\n"
+            f"📍 Адрес: {customer_address}\n\n"
             "────────────────────\n"
-            "📱 Переведите на Kaspi:\n"
-            "`+77XXXXXXXXX`\n\n"
-            "После оплаты отправьте скриншот чека."
+            "💳 **Оплата через Kaspi:**\n\n"
+            f"1️⃣ Переведите **{price} ₸** на Kaspi:\n"
+            f"`{KASPI_NUMBER}`\n\n"
+            "2️⃣ В комментарии к переводу укажите:\n"
+            f"`{order_code}`\n\n"
+            "3️⃣ Отправьте скриншот чека в этот чат"
         )
         await message.answer(text, parse_mode="Markdown")
     
@@ -147,6 +199,59 @@ async def web_app_data_handler(message: types.Message):
         kb = [[types.InlineKeyboardButton(text="Вернуться в магазин 🌸", web_app=types.WebAppInfo(url=WEBAPP_URL))]]
         markup = types.InlineKeyboardMarkup(inline_keyboard=kb)
         await message.answer("Попробуйте еще раз:", reply_markup=markup)
+
+
+async def receipt_handler(message: types.Message):
+    """Обработка фото/документа с чеком от пользователя. Ищем код заказа в подписи или сопоставляем по user_id/username."""
+    # get caption (for document) or caption for photo
+    caption = getattr(message, 'caption', None) or ''
+
+    # Try to find order code in caption (simple alphanumeric token)
+    import re as _re
+    match = _re.search(r'([A-Za-z0-9\-]{6,})', caption or '')
+    matched_code = match.group(1) if match else None
+
+    order = None
+    order_code = None
+    if matched_code:
+        order = pop_pending_order_by_code(matched_code)
+        order_code = matched_code if order else None
+
+    if not order:
+        # Try to find by user id or username
+        code, o = find_pending_order_for_user(message.from_user.id, getattr(message.from_user, 'username', None))
+        if code:
+            order = pop_pending_order_by_code(code)
+            order_code = code
+
+    if not order:
+        await message.answer('⚠️ Не найден соответствующий ожидающий заказ. Пожалуйста, отправьте чек с кодом заказа в подписи.')
+        return
+
+    # Forward the receipt (the message) to admin and send order details
+    customer_name = order.get('name', 'Не указано')
+    customer_address = order.get('address', 'Не указан')
+    
+    admin_text = (
+        f"📦 Получен чек к заказу {order_code or ''}\n\n"
+        f"Товар: {order.get('item')}\n"
+        f"Количество: {order.get('quantity')}\n"
+        f"Сумма: {order.get('price')} ₸\n"
+        f"👤 Имя: {customer_name}\n"
+        f"📍 Адрес: {customer_address}\n"
+        f"Отправитель: @{getattr(message.from_user, 'username', '')} (id={message.from_user.id})\n"
+    )
+
+    try:
+        await message.bot.send_message(ADMIN_ID, admin_text)
+        # forward the actual media message to admin
+        await message.forward(ADMIN_ID)
+    except Exception as e:
+        print('Failed to forward receipt to admin:', e)
+        await message.answer('⚠️ Не удалось отправить чек администратору. Попробуйте позже.')
+        return
+
+    await message.answer('✅ Спасибо! Чек получен и отправлен продавцу. Ожидайте подтверждения.')
 
 async def admin_add_product(message: types.Message, state: FSMContext):
     """Запуск интерактивного добавления товара"""

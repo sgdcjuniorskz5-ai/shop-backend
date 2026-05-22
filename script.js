@@ -6,29 +6,29 @@ if (tg) {
 }
 
 const productsContainer = document.querySelector('.products-grid');
-const warningContainer = document.querySelector('.webapp-warning');
-// Allow overriding API base via <meta name="api-base" content="https://your-backend.onrender.com/api">
 const metaApi = document.querySelector('meta[name="api-base"]');
 const API_BASE = metaApi && metaApi.content && metaApi.content.trim()
     ? metaApi.content.trim().replace(/\/$/, '')
     : (window.location.protocol === 'file:' ? 'http://localhost:8080/api' : `${window.location.origin}/api`);
 const API_URL = `${API_BASE}/products`;
 
-if (!isWebApp) {
-    warningContainer.innerHTML = '<p style="text-align: center; color: #b00020; margin-bottom: 15px;">⚠️ Магазин открыт вне Telegram WebApp. Откройте бота в мобильном приложении Telegram и нажмите кнопку магазина в чате. Веб-версия браузера и внешние ссылки не работают для заказа.</p>';
-}
+let pendingOrder = null;
 
 if (window.location.protocol === 'file:') {
     productsContainer.innerHTML = '<p style="text-align: center; grid-column: 1/-1; color: red;">Откройте магазин через локальный сервер: <strong>http://localhost:8080/</strong></p>';
 }
 
-// Загружаем товары при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     const refreshBtn = document.getElementById('refresh-btn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', loadProducts);
     }
+
+    const modalCancel = document.getElementById('modal-cancel');
+    const modalConfirm = document.getElementById('modal-confirm');
+    if (modalCancel) modalCancel.addEventListener('click', closeModal);
+    if (modalConfirm) modalConfirm.addEventListener('click', confirmOrder);
 });
 
 window.addEventListener('focus', loadProducts);
@@ -48,7 +48,6 @@ async function loadProducts() {
             return;
         }
         
-        // Очищаем контейнер и добавляем товары
         productsContainer.innerHTML = '';
         products.forEach(product => {
             const card = createProductCard(product);
@@ -98,7 +97,6 @@ function prepareOrder(name, pricePerOne, qtyId, productId) {
     const qtyElement = document.getElementById(qtyId);
     const qty = parseInt(qtyElement.value);
     
-    // Проверка корректности количества
     if (isNaN(qty) || qty <= 0) {
         alert('❌ Пожалуйста, укажите корректное количество!');
         return;
@@ -106,43 +104,105 @@ function prepareOrder(name, pricePerOne, qtyId, productId) {
     
     const totalPrice = pricePerOne * qty;
     
-    const data = {
+    pendingOrder = {
         product_id: productId,
         item: name,
         quantity: qty,
         price: totalPrice
     };
 
-    if (!isWebApp) {
-            const fallbackText = `Заказ не может быть отправлен автоматически вне Telegram.\n\nТовар: ${name}\nКоличество: ${qty}\nСумма: ${totalPrice} ₸\nID товара: ${productId}\n\nОткройте магазин через Telegram и повторите заказ.`;
-            copyText(fallbackText);
+    const orderInfo = document.getElementById('modal-order-info');
+    orderInfo.innerHTML = `
+        <div class="info-item">
+            <span class="info-label">Товар:</span>
+            <span class="info-value">${name}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Количество:</span>
+            <span class="info-value">${qty} шт.</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Цена за шт:</span>
+            <span class="info-value">${pricePerOne} ₸</span>
+        </div>
+        <div class="info-item info-total">
+            <span class="info-label">Итого:</span>
+            <span class="info-value">${totalPrice} ₸</span>
+        </div>
+    `;
 
-            // Попытка отправить заказ на сервер (чтобы админ получил уведомление)
-            try {
-                const res = await fetch(`${API_BASE}/order`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                if (res.ok) {
-                    alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован, и уведомление отправлено администратору.');
-                } else {
-                    alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован. Не удалось отправить уведомление администратору.');
-                }
-            } catch (err) {
-                console.warn('Order POST failed', err);
-                alert('⚠️ Магазин открыт вне Telegram. Текст заказа скопирован. Не удалось отправить уведомление администратору.');
-            }
-            return;
+    const nameInput = document.getElementById('modal-name');
+    const addressInput = document.getElementById('modal-address');
+    
+    if (isWebApp && tg.initDataUnsafe?.user) {
+        const user = tg.initDataUnsafe.user;
+        nameInput.value = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+    } else {
+        nameInput.value = '';
     }
+    addressInput.value = '';
+    nameInput.classList.remove('error');
+    addressInput.classList.remove('error');
 
-    tg.sendData(JSON.stringify(data));
+    document.getElementById('order-modal').classList.add('active');
 }
 
-function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).catch(() => {
-            console.warn('Не удалось скопировать текст в буфер обмена.');
-        });
+function closeModal() {
+    document.getElementById('order-modal').classList.remove('active');
+    pendingOrder = null;
+}
+
+function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.className = "toast show";
+    setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+}
+
+async function confirmOrder() {
+    const nameInput = document.getElementById('modal-name');
+    const addressInput = document.getElementById('modal-address');
+    
+    const name = nameInput.value.trim();
+    const address = addressInput.value.trim();
+    
+    let hasError = false;
+    
+    if (!name) {
+        nameInput.classList.add('error');
+        hasError = true;
+    } else {
+        nameInput.classList.remove('error');
     }
+    
+    if (!address) {
+        addressInput.classList.add('error');
+        hasError = true;
+    } else {
+        addressInput.classList.remove('error');
+    }
+    
+    if (hasError) {
+        return;
+    }
+    
+    if (!pendingOrder) {
+        alert('❌ Ошибка: данные заказа не найдены.');
+        return;
+    }
+    
+    const data = {
+        ...pendingOrder,
+        name: name,
+        address: address
+    };
+
+    if (isWebApp && tg) {
+        tg.sendData(JSON.stringify(data));
+        showToast("Инструкция отправлена в чат с ботом!");
+    } else {
+        showToast("Заказ оформлен! Откройте бота, чтобы получить реквизиты.");
+        console.log("Order Data:", data);
+    }
+    closeModal();
 }
