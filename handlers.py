@@ -4,7 +4,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from config import ADMIN_ID, WEBAPP_URL as CONFIG_WEBAPP_URL, KASPI_NUMBER
-from database import add_product, delete_product, get_all_products, get_product_by_id
+from database import add_product, delete_product, get_all_products, get_product_by_id, set_discount, remove_discount
 
 WEBAPP_URL = CONFIG_WEBAPP_URL
 LOCAL_WEB_URL = None
@@ -343,3 +343,57 @@ async def admin_delete_product(message: types.Message):
             await message.answer("❌ Формат: `/del ID_товара`", parse_mode="Markdown")
     else:
         await message.answer("⛔ Доступ запрещен")
+
+async def admin_discount(message: types.Message):
+    """Установка скидки на товар: /discount ID_товара проценты"""
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("⛔ Доступ запрещен")
+        return
+    
+    try:
+        parts = message.text.split()
+        if len(parts) < 3:
+            await message.answer("❌ Формат: `/discount ID_товара проценты`\nПример: `/discount 3 15`", parse_mode="Markdown")
+            return
+        
+        p_id = int(parts[1])
+        percent = int(parts[2])
+        
+        if percent < 0 or percent > 100:
+            await message.answer("❌ Процент скидки должен быть от 0 до 100")
+            return
+        
+        product = get_product_by_id(p_id)
+        if not product:
+            await message.answer(f"❌ Товар #{p_id} не найден!")
+            return
+        
+        set_discount(p_id, percent)
+        if percent == 0:
+            await message.answer(f"✅ Скидка на товар #{p_id} ({product[1]}) удалена!")
+        else:
+            new_price = product[2] * (100 - percent) / 100
+            await message.answer(
+                f"✅ Скидка {percent}% установлена на товар #{p_id} ({product[1]})!\n"
+                f"💰 Цена: {product[2]} ₸ → {new_price:.0f} ₸"
+            )
+    except (ValueError, IndexError):
+        await message.answer("❌ Формат: `/discount ID_товара проценты`", parse_mode="Markdown")
+
+async def admin_del_discount(message: types.Message):
+    """Удаление скидки с товара: /deldiscount ID_товара"""
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("⛔ Доступ запрещен")
+        return
+    
+    try:
+        p_id = int(message.text.split()[1])
+        product = get_product_by_id(p_id)
+        if not product:
+            await message.answer(f"❌ Товар #{p_id} не найден!")
+            return
+        
+        remove_discount(p_id)
+        await message.answer(f"✅ Скидка на товар #{p_id} ({product[1]}) удалена!")
+    except (ValueError, IndexError):
+        await message.answer("❌ Формат: `/deldiscount ID_товара`", parse_mode="Markdown")

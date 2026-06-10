@@ -54,6 +54,36 @@ body, html {
 .card-description { font-size: 12px; color: #666; margin-bottom: 10px; min-height: 30px; }
 .card-price { font-weight: bold; color: #e91e63; margin-bottom: 10px; }
 
+.old-price {
+    text-decoration: line-through;
+    color: #999;
+    font-weight: normal;
+    font-size: 12px;
+    margin-right: 6px;
+}
+
+.discount-badge {
+    display: inline-block;
+    background: #e91e63;
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.new-price {
+    color: #e91e63;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.discount-value {
+    color: #4caf50;
+    font-size: 12px;
+}
+
 .buy-btn {
     background: #000;
     color: #fff;
@@ -311,4 +341,70 @@ body, html {
 @keyframes fadeout {
     from {bottom: 30px; opacity: 1;}
     to {bottom: 0; opacity: 0;}
+}
+
+/* Оверлей с инструкциями при недоступности чата */
+.order-instructions-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.order-instructions {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.2s ease;
+    text-align: center;
+}
+
+.order-instructions h3 {
+    margin: 0 0 16px;
+    font-size: 20px;
+    color: #2e7d32;
+}
+
+.instructions-details, .instructions-payment {
+    text-align: left;
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.instructions-details p, .instructions-payment p {
+    margin: 6px 0;
+    font-size: 14px;
+}
+
+.code-value {
+    font-size: 22px !important;
+    font-weight: 700;
+    text-align: center;
+    background: #f5f5f5;
+    padding: 8px;
+    border-radius: 8px;
+    letter-spacing: 2px;
+    color: #e91e63;
+}
+
+.instructions-close {
+    margin-top: 16px;
+    background: #000;
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
 }
